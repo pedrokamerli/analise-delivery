@@ -34,7 +34,9 @@ O case segue as etapas do **CRISP-DM**, uma metodologia comum em projetos de ci�
 - Faturamento registrado e faturamento de pedidos concluídos
 - Ticket médio
 - Tempo mediano entre aceite e preparo
-- Pedidos por mês, dia da semana e hora
+- Pedidos por mês, semana e dia
+- Filtros de período e comparação entre dois intervalos
+- Pedidos por dia da semana e hora
 - Pedidos por status e forma de pagamento
 - Segmentação de clientes por classificação do sistema
 - Segmentação RFM por recência, frequência e valor histórico
@@ -79,7 +81,7 @@ python main.py
 Ao final da execução, o projeto gera:
 
 - Bases tratadas em `dados/tratados/`
-- Quatro gráficos em `imagens/`
+- Cinco gráficos em `imagens/geradas/`
 - Um relatório em `relatorios/gerados/relatorio_analitico.md`
 - Dados públicos agregados em `dados/publicos/`
 
@@ -91,7 +93,7 @@ Depois de executar `main.py`, abra o dashboard com:
 streamlit run dashboard/app.py
 ```
 
-O dashboard usa apenas tabelas agregadas. Valores de faturamento aparecem como índice, e não em reais, para reduzir a exposição de informações comerciais.
+O dashboard permite analisar os dados mês a mês, semana a semana ou dia a dia. Também permite selecionar um intervalo de datas e comparar dois períodos por pedidos, taxa de conclusão e índice de faturamento. Os valores financeiros aparecem como índice, e não em reais, para reduzir a exposição de informações comerciais.
 
 ## Segmentação RFM
 

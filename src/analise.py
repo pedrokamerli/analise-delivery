@@ -36,6 +36,31 @@ def gerar_tabelas_analiticas(pedidos: pd.DataFrame, clientes: pd.DataFrame) -> d
     )
     por_mes = por_mes.merge(receita_concluida, on="mes", how="left").fillna(0)
     por_mes["taxa_conclusao"] = (100 * por_mes["pedidos_concluidos"] / por_mes["pedidos"]).round(1)
+    base_faturamento = por_mes.loc[por_mes["faturamento_concluido"] > 0, "faturamento_concluido"].iloc[0]
+    base_ticket = por_mes.loc[por_mes["ticket_medio"] > 0, "ticket_medio"].iloc[0]
+    por_mes["indice_faturamento"] = (100 * por_mes["faturamento_concluido"] / base_faturamento).round(1)
+    por_mes["indice_ticket"] = (100 * por_mes["ticket_medio"] / base_ticket).round(1)
+
+    pedidos_com_data = pedidos.assign(data=pedidos["data_pedido"].dt.normalize())
+    por_data = pedidos_com_data.groupby("data", as_index=False).agg(
+        pedidos=("id_pedido", "size"),
+        pedidos_concluidos=("pedido_concluido", "sum"),
+    )
+    receita_diaria = concluidos.assign(data=concluidos["data_pedido"].dt.normalize()).groupby(
+        "data", as_index=False
+    ).agg(faturamento_concluido=("valor_total", "sum"), ticket_medio=("valor_total", "mean"))
+    por_data = por_data.merge(receita_diaria, on="data", how="left").fillna(0)
+    por_data["taxa_conclusao"] = (100 * por_data["pedidos_concluidos"] / por_data["pedidos"]).round(1)
+    por_data["indice_faturamento"] = (100 * por_data["faturamento_concluido"] / base_faturamento).round(3)
+    por_data["indice_ticket"] = (100 * por_data["ticket_medio"] / base_ticket).round(3)
+    por_data["pontos_ticket_indice"] = (
+        por_data["indice_ticket"] * por_data["pedidos_concluidos"]
+    ).round(3)
+    por_data["semana"] = (
+        por_data["data"] - pd.to_timedelta(por_data["data"].dt.dayofweek, unit="D")
+    ).dt.strftime("%Y-%m-%d")
+    por_data["mes"] = por_data["data"].dt.strftime("%Y-%m")
+    por_data["data"] = por_data["data"].dt.strftime("%Y-%m-%d")
 
     por_dia = pedidos.groupby("dia_semana", observed=False, as_index=False).agg(
         pedidos=("id_pedido", "size"), faturamento=("valor_total", "sum")
@@ -47,6 +72,19 @@ def gerar_tabelas_analiticas(pedidos: pd.DataFrame, clientes: pd.DataFrame) -> d
     por_pagamento = pedidos.groupby("forma_pagamento", as_index=False).agg(
         pedidos=("id_pedido", "size"), faturamento=("valor_total", "sum")
     ).sort_values("faturamento", ascending=False)
+    por_tipo = pedidos.groupby("tipo_pedido", as_index=False).agg(
+        pedidos=("id_pedido", "size"), taxa_conclusao=("pedido_concluido", "mean")
+    )
+    por_tipo["taxa_conclusao"] = (100 * por_tipo["taxa_conclusao"]).round(1)
+    preparo_valido = pedidos[pedidos["tempo_preparo_min"].between(0, 180)]
+    preparo_por_hora = preparo_valido.groupby("hora", as_index=False).agg(
+        pedidos_com_tempo=("id_pedido", "size"),
+        preparo_mediano_min=("tempo_preparo_min", "median"),
+        preparo_p90_min=("tempo_preparo_min", lambda valores: valores.quantile(0.9)),
+    )
+    preparo_por_hora[["preparo_mediano_min", "preparo_p90_min"]] = preparo_por_hora[
+        ["preparo_mediano_min", "preparo_p90_min"]
+    ].round(1)
     por_cliente = clientes.groupby("classificacao", as_index=False).agg(
         clientes=("classificacao", "size"),
         mediana_pedidos=("pedidos_historicos", "median"),
@@ -55,10 +93,13 @@ def gerar_tabelas_analiticas(pedidos: pd.DataFrame, clientes: pd.DataFrame) -> d
     rfm, segmentos_rfm = calcular_segmentacao_rfm(clientes)
     return {
         "por_mes": por_mes,
+        "por_data": por_data,
         "por_dia": por_dia,
         "por_hora": por_hora,
         "por_status": por_status,
         "por_pagamento": por_pagamento,
+        "por_tipo": por_tipo,
+        "preparo_por_hora": preparo_por_hora,
         "por_cliente": por_cliente,
         "rfm": rfm,
         "segmentos_rfm": segmentos_rfm,

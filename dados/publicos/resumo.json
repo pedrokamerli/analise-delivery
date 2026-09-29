@@ -3,5 +3,6 @@
   "total_pedidos": 3869,
   "taxa_conclusao": 91.2,
   "ticket_medio_indice": 100,
+  "registros_tempo_final_invalido": 116,
   "observacao": "Faturamento e ticket médio foram indexados ou omitidos para proteção comercial."
 }
