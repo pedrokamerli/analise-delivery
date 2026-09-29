@@ -1,0 +1,16 @@
+# Ambiente e configurações locais
+.venv/
+.idea/
+__pycache__/
+.pytest_cache/
+
+# Dados do cliente e saídas geradas localmente
+dados/brutos/
+dados/tratados/
+relatorios/gerados/
+imagens/geradas/
+imagens/*.png
+
+# Arquivos temporários
+*.log
+*.tmp
