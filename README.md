@@ -103,7 +103,7 @@ RFM é uma técnica de segmentação de clientes baseada em:
 - **Frequência:** quantos pedidos já realizou;
 - **Valor monetário:** quanto já faturou historicamente.
 
-O projeto classifica os clientes em quatro grupos: clientes fiéis, clientes recentes, clientes em risco e baixo engajamento. A finalidade é apoiar campanhas de retenção e reativação, não fazer contato automático com clientes.
+O projeto classifica os clientes em cinco grupos: clientes fiéis, clientes recentes, clientes em risco, baixo engajamento e oportunidade. A finalidade é apoiar campanhas de retenção e reativação, não fazer contato automático com clientes.
 
 ## Avaliações
 

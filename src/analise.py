@@ -121,7 +121,7 @@ def calcular_segmentacao_rfm(clientes: pd.DataFrame) -> tuple[pd.DataFrame, pd.D
     rfm["nota_frequencia"] = _pontuar_quartis(rfm["pedidos_historicos"])
     rfm["nota_valor"] = _pontuar_quartis(rfm["faturamento_historico"])
 
-    rfm["segmento_rfm"] = "Em desenvolvimento"
+    rfm["segmento_rfm"] = "Oportunidade"
     rfm.loc[
         (rfm["nota_recencia"] >= 3)
         & (rfm["nota_frequencia"] >= 3)

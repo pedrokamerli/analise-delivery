@@ -16,7 +16,7 @@ LARANJA = "#F97316"
 VERDE = "#16A34A"
 ROXO = "#7C3AED"
 
-st.set_page_config(page_title="Delivery Intelligence", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Inteligência de Delivery", page_icon="📊", layout="wide")
 
 
 @st.cache_data
@@ -62,13 +62,20 @@ def calcular_delta(valor_a: float, valor_b: float, sufixo: str = "%") -> str:
     return f"{variacao:+.1f}{sufixo}"
 
 
+def formatar_periodo(valor: str, granularidade: str) -> str:
+    data = pd.to_datetime(valor)
+    if granularidade == "Mês a mês":
+        return data.strftime("%m/%Y")
+    return data.strftime("%d/%m/%Y")
+
+
 dados = carregar_dados()
 resumo = dados["resumo"]
 serie = dados["serie"]
 data_minima = serie["data"].min().date()
 data_maxima = serie["data"].max().date()
 
-st.title("Delivery Intelligence")
+st.title("Inteligência de Delivery")
 st.caption("Case de portfólio com dados agregados e indicadores financeiros indexados.")
 
 with st.sidebar:
@@ -103,7 +110,10 @@ pico = periodos.loc[periodos["pedidos"].idxmax()] if not periodos.empty else Non
 coluna_1, coluna_2, coluna_3, coluna_4 = st.columns(4)
 coluna_1.metric("Pedidos no período", f"{pedidos_periodo:,}".replace(",", "."))
 coluna_2.metric("Taxa de conclusão", f"{taxa_periodo:.1f}%")
-coluna_3.metric("Melhor período", str(pico["periodo"]) if pico is not None else "-")
+coluna_3.metric(
+    "Melhor período",
+    formatar_periodo(str(pico["periodo"]), granularidade) if pico is not None else "-",
+)
 coluna_4.metric("Pedidos no pico", f"{int(pico['pedidos']):,}".replace(",", ".") if pico is not None else "-")
 
 mapa_indicadores = {
