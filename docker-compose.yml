@@ -1,0 +1,17 @@
+services:
+  analise-delivery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: analise-delivery:latest
+    container_name: analise-delivery
+    restart: unless-stopped
+    expose:
+      - "8501"
+    networks:
+      - proxy-compartilhado
+
+networks:
+  proxy-compartilhado:
+    external: true
+    name: ${PROXY_NETWORK:-evolync_network}

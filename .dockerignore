@@ -1,0 +1,6 @@
+**
+!dashboard/
+!dashboard/app.py
+!dados/
+!dados/publicos/
+!dados/publicos/**
