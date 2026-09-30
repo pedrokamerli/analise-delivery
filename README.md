@@ -90,7 +90,7 @@ Ao final da execução, o projeto gera:
 Depois de executar `main.py`, abra o dashboard com:
 
 ```powershell
-streamlit run dashboard/app.py
+streamlit run dashboard/app.py --server.port 8512
 ```
 
 O dashboard permite analisar os dados mês a mês, semana a semana ou dia a dia. Também permite selecionar um intervalo de datas e comparar dois períodos por pedidos, taxa de conclusão e índice de faturamento. Os valores financeiros aparecem como índice, e não em reais, para reduzir a exposição de informações comerciais.
