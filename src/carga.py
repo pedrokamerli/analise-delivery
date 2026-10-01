@@ -24,7 +24,9 @@ def localizar_arquivo(padrao: str) -> Path:
 
 def carregar_pedidos() -> pd.DataFrame:
     """Carrega a planilha de pedidos exportada pelo sistema."""
-    return pd.read_excel(localizar_arquivo("Pedidos - *.xlsx"))
+    arquivo = localizar_arquivo("Pedidos - *.xlsx")
+    consolidado = arquivo.with_suffix(".pkl")
+    return pd.read_pickle(consolidado) if consolidado.exists() else pd.read_excel(arquivo)
 
 
 def carregar_clientes() -> pd.DataFrame:

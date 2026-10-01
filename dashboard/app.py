@@ -81,6 +81,24 @@ def formatar_periodo(valor: str, granularidade: str) -> str:
 
 dados = carregar_dados()
 resumo = dados["resumo"]
+if not MODO_PUBLICO:
+    with st.sidebar.expander("Importar pedidos do sistema (Excel)"):
+        st.caption("Importação local: preserva pedidos anteriores e atualiza IDs repetidos. Regenera os CSVs públicos e o histórico de previsão. O cadastro de clientes permanece na data da sua exportação.")
+        excel = st.file_uploader("Exportação de pedidos .xlsx (até 20 MB)", type=["xlsx"], key="excel_pedidos")
+        if excel and st.button("Importar Excel e atualizar análise"):
+            try:
+                from src.importacao import importar_excel
+                with st.spinner("Atualizando pedidos e histórico..."):
+                    resultado = importar_excel(excel.getvalue())
+                st.session_state["resultado_importacao"] = resultado
+                for chave in ["serie_atualizada", "fonte_atualizada", "negocio_serie", "negocio_resultado", "negocio_csv"]:
+                    st.session_state.pop(chave, None)
+                carregar_dados.clear()
+                st.rerun()
+            except (ValueError, FileNotFoundError, OSError) as erro:
+                st.error(str(erro))
+        if "resultado_importacao" in st.session_state:
+            st.success(f"Importação concluída: {st.session_state['resultado_importacao']}")
 if not MODO_PUBLICO and "serie_atualizada" not in st.session_state and ARQUIVO_LOCAL.exists():
     try:
         st.session_state["serie_atualizada"] = validar_csv(ARQUIVO_LOCAL.read_bytes())
@@ -88,6 +106,8 @@ if not MODO_PUBLICO and "serie_atualizada" not in st.session_state and ARQUIVO_L
     except ValueError as erro:
         st.error(f"Base local inválida: {erro}")
 with st.sidebar.expander("Atualizar dados por CSV"):
+    if MODO_PUBLICO:
+        st.info("Exportações Excel com dados pessoais devem ser importadas no dashboard local, em ‘Importar pedidos do sistema (Excel)’. Aqui, envie somente o CSV agregado gerado pela análise. Para atualizar permanentemente o site, publique novamente a base pública.")
     st.caption("Envie agregações diárias sem nomes, telefones ou valores em reais. Na versão pública, a atualização vale apenas para sua sessão." if MODO_PUBLICO else "Envie agregações diárias sem nomes, telefones ou valores em reais. Aplique na sessão e, se quiser manter a atualização após reiniciar, salve a base local.")
     st.download_button("Baixar modelo CSV", dados["serie"].head(3).to_csv(index=False).encode("utf-8"), "modelo_serie_diaria.csv", "text/csv")
     arquivo = st.file_uploader("CSV diário (até 5 MB)", type=["csv"])

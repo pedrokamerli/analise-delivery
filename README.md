@@ -128,3 +128,16 @@ Na VPS, configurei `DELIVERY_PUBLICO=1`: a previsão usa `dados/publicos/histori
 ## Próximos passos
 
 Pretendo evoluir o case com dados de produtos e custos para analisar margem e atualizar a implantação da VPS após a validação local.
+# Atualizar pedidos com uma exportação Excel
+
+No dashboard local, abro **Importar pedidos do sistema (Excel)** na barra lateral e envio a exportação `.xlsx`. A importação combina os pedidos pelo ID: mantém os anteriores, atualiza os repetidos e inclui os novos. Assim, posso enviar uma exportação de apenas um mês sem perder os outros meses. A base anterior fica em backup local.
+
+Também posso executar no terminal do projeto:
+
+```powershell
+python atualizar_pedidos.py "D:\Veneza marketing\Pedidos - 2026-10-01 08-47-16.xlsx"
+```
+
+As planilhas originais de pedidos e clientes precisam estar em `dados/brutos`. O histórico consolidado fica nessa pasta, em um arquivo `.pkl` gerado pelo próprio projeto. A importação recalcula as agregações e o histórico de previsão. O cadastro e a segmentação RFM continuam referentes à exportação de clientes disponível.
+
+No site público, o upload aceita apenas CSV agregado e vale para a sessão. Não envio a planilha bruta ao site, pois ela contém informações pessoais e valores em reais. Para atualizar a base pública permanentemente, publico os arquivos regenerados em `dados/publicos` pelo Git e reconstruo o contêiner da VPS.
