@@ -14,6 +14,8 @@ RAIZ_PROJETO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ_PROJETO))
 from src.atualizacao import validar_csv, combinar_series, salvar_serie_local
 from src.previsao import executar_previsao
+from src.previsao_negocio import prever_pedidos_faturamento
+from src.historico_clientes import gerar_base_local, validar_csv_historico, COLUNAS_HISTORICO
 PASTA_DADOS = RAIZ_PROJETO / "dados" / "publicos"
 ARQUIVO_LOCAL = RAIZ_PROJETO / "dados" / "atualizacoes" / "serie_diaria.csv"
 AZUL = "#2563EB"
@@ -250,7 +252,7 @@ st.warning(f"Qualidade dos dados: {resumo['registros_tempo_final_invalido']} reg
 st.caption("Dados pessoais e valores financeiros absolutos foram removidos da camada pública.")
 
 st.divider()
-analise_tab, ml_tab, base_tab = st.tabs(["Diagnóstico da demanda", "Previsão e validação de ML", "Dados e exportação"])
+analise_tab, negocio_tab, ml_tab, base_tab = st.tabs(["Diagnóstico da demanda", "Pedidos e faturamento", "Previsão na base pública", "Dados e exportação"])
 with analise_tab:
     calendario = pd.date_range(serie_filtrada.data.min(), serie_filtrada.data.max()) if not serie_filtrada.empty else []
     ausentes = len(calendario) - len(serie_filtrada)
@@ -262,6 +264,112 @@ with analise_tab:
         evolucao = serie_filtrada.sort_values("data").assign(media_7_observacoes=lambda df: df.pedidos.rolling(7, min_periods=1).mean())
         st.plotly_chart(px.line(evolucao, x="data", y=["pedidos", "media_7_observacoes"], title="Demanda e média das últimas 7 observações"), use_container_width=True)
         st.caption("Comparações de meses ou semanas parciais exigem cuidado: o filtro pode conter quantidades diferentes de dias. A taxa de conclusão é calculada sobre todos os pedidos, incluindo os ainda em andamento.")
+
+with negocio_tab:
+    st.subheader("Previsão diária com histórico de clientes e pedidos")
+    st.write("Estimo pedidos e faturamento separadamente. O modelo usa calendário, médias recentes, último valor observado e o histórico de clientes ativos, recorrência, frequência e ticket dos 28 dias anteriores.")
+    st.caption("Visão local em reais. Faturamento corresponde ao total dos pedidos concluídos, agrupado pela data do pedido; não é lucro nem fluxo de caixa. A classificação de status é a registrada na exportação.")
+    pasta_historico = RAIZ_PROJETO / "dados" / "tratados"
+    caminho_historico = pasta_historico / "historico_diario.csv"
+    with st.expander("Preparar ou atualizar histórico local"):
+        st.write("Reconstruo o histórico a partir das planilhas originais. O telefone é usado somente em memória para relacionar clientes aos pedidos. Nenhum identificador é salvo na série diária.")
+        if st.button("Reconstruir histórico das planilhas locais"):
+            try:
+                with st.spinner("Relacionando clientes e pedidos..."):
+                    gerar_base_local(pasta_historico)
+                st.session_state.pop("negocio_serie", None)
+                st.session_state.pop("negocio_resultado", None)
+                st.session_state.pop("negocio_csv", None)
+                st.success("Histórico reconstruído localmente.")
+            except (ValueError, FileNotFoundError) as erro:
+                st.error(str(erro))
+        arquivo_historico = st.file_uploader("Atualizar histórico diário em CSV (valores em reais)", type=["csv"], key="upload_negocio")
+        modo_historico = st.selectbox("Atualização do histórico", ["Adicionar ou corrigir datas", "Substituir série completa"], key="modo_negocio")
+        if arquivo_historico:
+            try:
+                nova_base = validar_csv_historico(arquivo_historico.getvalue())
+                st.dataframe(nova_base.head(), hide_index=True)
+                st.caption("As colunas historico_* devem conter somente informações anteriores à data de cada linha. Uma correção de pedidos antigos exige reconstruir também os atributos históricos dos dias seguintes.")
+                if st.button("Aplicar CSV ao histórico de previsão"):
+                    anterior = st.session_state.get("negocio_serie")
+                    if anterior is None and caminho_historico.exists():
+                        anterior = validar_csv_historico(caminho_historico.read_bytes())
+                    if anterior is None or modo_historico == "Substituir série completa":
+                        anterior = nova_base
+                    elif set(anterior.columns) != set(nova_base.columns):
+                        raise ValueError("Para adicionar datas, mantenha todas as colunas da série ativa. Use substituição completa se o esquema mudou.")
+                    st.session_state["negocio_serie"] = combinar_series(anterior, nova_base, modo_historico)
+                    st.session_state["negocio_csv"] = True
+                    st.session_state.pop("negocio_resultado", None)
+                    st.rerun()
+            except ValueError as erro:
+                st.error(str(erro))
+    base_negocio = st.session_state.get("negocio_serie")
+    if base_negocio is None and caminho_historico.exists():
+        try:
+            base_negocio = validar_csv_historico(caminho_historico.read_bytes())
+        except ValueError as erro:
+            st.error(str(erro))
+    if base_negocio is None:
+        st.info("Reconstrua o histórico das planilhas locais ou envie um CSV para habilitar pedidos e faturamento.")
+    else:
+        st.caption(f"Série ativa: {base_negocio.data.min():%d/%m/%Y} a {base_negocio.data.max():%d/%m/%Y}, com {len(base_negocio)} dias observados. A projeção começa após a última data disponível.")
+        if pd.Timestamp.today().normalize() > base_negocio.data.max() + pd.Timedelta(days=1):
+            st.warning("O histórico está defasado. Parte da projeção pode corresponder a datas já passadas; atualize os pedidos para prever a partir de uma origem recente.")
+        if not set(COLUNAS_HISTORICO).issubset(base_negocio.columns):
+            st.info("Este CSV permite prever pedidos e faturamento, mas não contém todos os atributos de clientes. Para usar recorrência e frequência, reconstrua o histórico das planilhas ou envie o modelo completo.")
+        if not st.session_state.get("negocio_csv") and (pasta_historico / "historico_resumo.json").exists():
+            metadados = json.loads((pasta_historico / "historico_resumo.json").read_text(encoding="utf-8"))
+            st.caption(f"Vínculo com o cadastro: {metadados['cobertura_cadastro_pct']:.1f}% dos pedidos com telefone válido. Clientes distintos no histórico: {metadados['clientes_identificados_nos_pedidos']}. Recorrência medida apenas dentro do período disponível.")
+        st.download_button("Baixar histórico diário / modelo CSV", base_negocio.to_csv(index=False).encode("utf-8"), "historico_diario.csv", "text/csv")
+        if st.button("Salvar histórico de previsão localmente"):
+            try:
+                salvar_serie_local(base_negocio, caminho_historico, validar_csv_historico)
+                st.success("Salvo em dados/tratados, com backup da versão anterior e fora do Git.")
+            except (ValueError, OSError) as erro:
+                st.error(f"Não foi possível salvar: {erro}")
+        horizonte_negocio = st.slider("Dias de previsão de pedidos e faturamento", 7, 28, 14)
+        zeros_negocio = st.checkbox("Neste histórico, dias sem registro significam zero pedidos", key="zeros_negocio")
+        st.caption("Sem confirmar zeros, as métricas usam dias observados. Os dias previstos devem ser interpretados como dias com operação. O calendário de abertura da loja não é conhecido.")
+        st.warning("Pedidos em andamento na exportação ainda não compõem o faturamento concluído. Dias recentes podem ter receita subestimada. Os status são um retrato da exportação, não um registro completo de como eram conhecidos em cada data histórica.")
+        assinatura_negocio = (int(pd.util.hash_pandas_object(base_negocio, index=False).sum()), horizonte_negocio, zeros_negocio)
+        if st.session_state.get("negocio_assinatura") != assinatura_negocio:
+            st.session_state.pop("negocio_resultado", None)
+        if st.button("Prever pedidos e faturamento por dia"):
+            try:
+                with st.spinner("Avaliando pedidos e faturamento em três janelas futuras..."):
+                    st.session_state["negocio_resultado"] = prever_pedidos_faturamento(base_negocio, horizonte_negocio, zeros_negocio)
+                st.session_state["negocio_assinatura"] = assinatura_negocio
+            except ValueError as erro:
+                st.error(str(erro))
+        if "negocio_resultado" in st.session_state:
+            negocio = st.session_state["negocio_resultado"]
+            previsao_negocio = negocio["previsao"]
+            pedidos_col, receita_col = st.columns(2)
+            pedidos_col.metric("Pedidos estimados no horizonte", f"{previsao_negocio.pedidos_previstos.sum():.0f}")
+            receita_col.metric("Faturamento estimado no horizonte", "R$ " + f"{previsao_negocio.faturamento_previstos.sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.dataframe(previsao_negocio, hide_index=True, column_config={
+                "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+                "pedidos_previstos": st.column_config.NumberColumn("Pedidos previstos", format="%.1f"),
+                "pedidos_inferior": st.column_config.NumberColumn("Pedidos: limite inferior", format="%.1f"),
+                "pedidos_superior": st.column_config.NumberColumn("Pedidos: limite superior", format="%.1f"),
+                "faturamento_previstos": st.column_config.NumberColumn("Faturamento previsto (R$)", format="R$ %.2f"),
+                "faturamento_inferior": st.column_config.NumberColumn("Receita: limite inferior (R$)", format="R$ %.2f"),
+                "faturamento_superior": st.column_config.NumberColumn("Receita: limite superior (R$)", format="R$ %.2f"),
+            })
+            for alvo, unidade in [("pedidos", "Pedidos"), ("faturamento", "Faturamento (R$)")]:
+                st.write(f"**{unidade}** — método selecionado: {negocio['modelos'][alvo]}")
+                st.plotly_chart(px.line(previsao_negocio, x="data", y=[f"{alvo}_previstos", f"{alvo}_inferior", f"{alvo}_superior"], title=f"{unidade} por dia", labels={"data": "Data", "value": unidade, "variable": "Série"}), use_container_width=True)
+            st.caption("Faixas individuais baseadas no percentil 90 dos erros de validação; não são garantia de cobertura nem devem ser somadas como intervalo do total. Pedidos fracionários representam uma expectativa, não uma contagem garantida.")
+            st.subheader("Quanto o modelo errou ao prever períodos anteriores?")
+            st.dataframe(negocio["avaliacao"].groupby(["alvo", "modelo"])[["MAE", "RMSE"]].mean().round(2))
+            st.caption("MAE de pedidos é medido em pedidos/dia; MAE de faturamento em reais/dia. Escolho o método por alvo usando as mesmas janelas de seleção, sem um teste final independente. O contexto dos clientes fica congelado na origem e as médias de demanda avançam com previsões, sem consultar valores reais futuros.")
+            with st.expander("Resultados por janela, previsões de teste e importância das variáveis"):
+                st.dataframe(negocio["avaliacao"], hide_index=True)
+                for alvo in ["pedidos", "faturamento"]:
+                    st.plotly_chart(px.line(negocio["validacao"].query("alvo == @alvo"), x="data", y=["real", "ml", "referencia"], title=f"Validação cronológica: {alvo}"), use_container_width=True)
+                st.dataframe(negocio["importancia"].sort_values(["alvo", "importancia"], ascending=[True, False]), hide_index=True)
+            st.download_button("Baixar previsão diária de pedidos e faturamento", previsao_negocio.to_csv(index=False).encode("utf-8"), "previsao_pedidos_faturamento.csv", "text/csv")
 
 with ml_tab:
     st.write("Previsão experimental do número de pedidos diários. Random Forest usa variáveis de calendário e é comparado à média histórica por dia da semana em três janelas cronológicas. O método com menor MAE médio gera a projeção.")

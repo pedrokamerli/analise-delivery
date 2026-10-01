@@ -54,11 +54,11 @@ def combinar_series(atual, nova, modo):
     return pd.concat([atual, nova], ignore_index=True).drop_duplicates("data", keep="last").sort_values("data").reset_index(drop=True)
 
 
-def salvar_serie_local(serie, destino):
+def salvar_serie_local(serie, destino, validador=validar_csv):
     """Valida, preserva a versão anterior e troca o arquivo atomicamente."""
     destino = Path(destino)
     conteudo = serie.to_csv(index=False).encode("utf-8")
-    validar_csv(conteudo)
+    validador(conteudo)
     destino.parent.mkdir(parents=True, exist_ok=True)
     if destino.exists():
         backup = destino.with_name(f"serie_backup_{datetime.now():%Y%m%d_%H%M%S_%f}.csv")

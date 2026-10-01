@@ -9,6 +9,8 @@ from src.publicacao import exportar_dados_publicos
 from src.relatorio import criar_relatorio
 from src.tratamento import tratar_clientes, tratar_pedidos
 from src.visualizacao import salvar_graficos
+from src.historico_clientes import construir_historico
+import json
 
 
 def salvar_tabelas(tabelas: dict, pasta_saida: Path) -> None:
@@ -43,6 +45,11 @@ def main() -> None:
         metricas, tabelas, auditoria_avaliacoes, RAIZ_PROJETO / "relatorios" / "gerados"
     )
     exportar_dados_publicos(metricas, tabelas, RAIZ_PROJETO / "dados" / "publicos")
+    historico, resumo_historico = construir_historico(pedidos_brutos, clientes_brutos)
+    historico.to_csv(pasta_dados_tratados / "historico_diario.csv", index=False)
+    (pasta_dados_tratados / "historico_resumo.json").write_text(
+        json.dumps(resumo_historico, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     print("\nAnálise concluída.")
     print(f"Período: {metricas['periodo_inicial']} a {metricas['periodo_final']}")

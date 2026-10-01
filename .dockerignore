@@ -7,3 +7,7 @@
 !src/
 !src/atualizacao.py
 !src/previsao.py
+!src/previsao_negocio.py
+!src/historico_clientes.py
+!src/tratamento.py
+!src/carga.py

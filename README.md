@@ -109,6 +109,20 @@ Para verificar as regras de importação e previsão:
 python -m pytest testes -q
 ```
 
+## Previsão diária de pedidos e faturamento com clientes
+
+Na aba **Pedidos e faturamento**, acrescentei uma previsão local em reais usando os pedidos e o histórico de compra reconstruído por cliente. Relaciono as planilhas pelo telefone apenas em memória; o arquivo diário salvo não contém identificadores e fica em `dados/tratados/`, fora do Git.
+
+O modelo considera clientes ativos e que repetiram pedidos nos 28 dias anteriores, frequência média e ticket histórico, além de calendário, médias recentes e último valor de demanda. Os totais atuais do cadastro de clientes não são projetados para trás no tempo. Recorrência é medida somente dentro do histórico de pedidos disponível.
+
+Treino modelos separados para pedidos e faturamento e comparo cada um com uma média por dia da semana. A validação usa três janelas com o mesmo horizonte de 7 a 28 dias da projeção. Dentro de cada janela, a demanda futura avança com estimativas; o contexto dos clientes fica congelado na origem, pois não conheço as compras futuras.
+
+Faturamento significa a soma dos valores dos pedidos concluídos conforme a exportação, agrupada pela data do pedido. Não é margem, lucro ou recebimento de caixa. Os status são um retrato atual: pedidos recentes ainda em andamento podem subestimar a receita. Sem registros históricos de mudanças de status, a validação não reproduz integralmente o que era conhecido na época.
+
+Para atualizar essa previsão, posso reconstruir o histórico das planilhas locais, executar `python main.py` ou enviar o CSV diário em reais pelo painel. O modelo completo para download inclui os atributos de clientes. CSVs contendo apenas `data`, `pedidos` e `faturamento` funcionam, mas não acrescentam contexto de clientes. Correções em pedidos antigos exigem recalcular os atributos dos dias seguintes.
+
+Os dados em reais e as previsões detalhadas ficam na visão local; a camada pública continua usando agregações financeiras indexadas.
+
 ## Próximos passos
 
 Pretendo evoluir o case com dados de produtos e custos para analisar margem e atualizar a implantação da VPS após a validação local.
