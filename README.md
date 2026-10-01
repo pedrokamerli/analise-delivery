@@ -1,143 +1,209 @@
-# Análise de Dados de uma Operação de Delivery
+# Análise e previsão de demanda de delivery
 
-Este é um projeto que desenvolvi para praticar um fluxo de análise de dados de ponta a ponta. Parti de planilhas reais de uma operação de delivery e organizei os dados para responder perguntas sobre demanda, eficiência operacional e comportamento de compra.
+Projeto de Ciência de Dados que transforma exportações de pedidos e clientes em indicadores operacionais, análises de recorrência e previsões diárias de pedidos e faturamento. O fluxo inclui tratamento de dados, análise exploratória, modelagem, dashboard interativo e publicação com Docker.
 
-Por se tratar de dados de cliente, as planilhas originais e qualquer informação identificável ficam fora deste repositório. Aqui publico somente o código, a documentação e bases agregadas que permitem reproduzir o dashboard sem expor informações pessoais ou comerciais.
+Desenvolvi este case com dados reais de uma operação de delivery. A versão pública utiliza agregações sem identificadores pessoais e com valores financeiros indexados.
 
-## O que eu quis responder
+**[Acessar o dashboard](https://analise-delivery.pedromerli.com/)** · **[Código no GitHub](https://github.com/pedrokamerli/analise-delivery)**
 
-Durante a análise, busquei entender principalmente:
+## Objetivo
 
-- Em quais dias e horários a demanda é maior?
-- Qual é a taxa de conclusão dos pedidos?
-- Como os pedidos se comportam ao longo do mês, da semana e do dia?
-- Há mudanças relevantes ao comparar dois períodos?
-- Como está o tempo de preparo da operação?
-- Quais grupos de clientes merecem ações de retenção ou reativação?
+Organizar o histórico da operação para apoiar decisões sobre demanda, capacidade de atendimento e relacionamento com clientes. As perguntas que orientam a análise são:
 
-## Como conduzi a análise
+- Como o volume de pedidos varia por mês, semana, dia e horário?
+- Qual é a proporção de pedidos concluídos e como ela muda entre períodos?
+- Em quais horários o tempo de preparo exige atenção?
+- Quais segmentos de clientes podem orientar ações de retenção e reativação?
+- Quantos pedidos e qual faturamento podem ser esperados nos próximos dias?
 
-Usei o CRISP-DM como referência para estruturar o case: comecei pelo entendimento das perguntas de negócio, explorei as planilhas, tratei datas e campos necessários, criei indicadores e, por fim, transformei os resultados em gráficos, relatório e dashboard.
+As previsões são estimativas para planejamento. O projeto não mede o efeito de intervenções comerciais nem demonstra ganhos de faturamento decorrentes do uso do dashboard.
 
-Também fiz uma auditoria do arquivo de avaliações. Como ele foi exportado como PDF visual, sem texto estruturado, registrei essa limitação em vez de tentar inferir sentimentos sem uma base confiável.
+## Base analisada
 
-## Principais entregas
+| Indicador | Base atual |
+|---|---|
+| Período dos pedidos | 01/01/2026 a 30/09/2026 |
+| Pedidos registrados | 3.878 |
+| Dias com registros | 194 |
+| Taxa de conclusão | 91,4% |
+| Maior volume mensal | Maio de 2026: 564 pedidos |
 
-- Indicadores de pedidos, conclusão, ticket médio e tempo de preparo;
-- Análises por mês, semana, data, dia da semana, hora, status e forma de pagamento;
-- Comparação entre dois intervalos selecionados;
-- Segmentação RFM de clientes por recência, frequência e valor histórico;
-- Dashboard interativo construído com Streamlit;
-- Relatório automático e gráficos para apoiar a interpretação dos resultados.
+Os números descrevem a exportação disponível e podem mudar após uma atualização. A taxa de conclusão considera os status registrados na exportação, incluindo pedidos ainda em andamento no denominador.
 
-## Tecnologias utilizadas
+As fontes locais são uma planilha de pedidos, uma planilha de clientes e um PDF de avaliações. O PDF não possui texto estruturado suficiente para uma análise de sentimentos confiável; essa limitação foi registrada na auditoria.
 
-Python, Pandas, Plotly, Matplotlib, Seaborn, Streamlit, PyPDF e Pytest.
+## Dashboard
 
-## Estrutura do projeto
+![Dashboard com indicadores e evolução mensal dos pedidos](documentacao/imagens/dashboard.jpg)
 
-```text
-Analise_Veneza/
-├── dados/
-│   ├── brutos/              # Arquivos originais, ignorados pelo Git
-│   ├── tratados/            # Arquivos locais gerados no tratamento
-│   └── publicos/            # Agregações seguras usadas no dashboard
-├── dashboard/
-│   └── app.py               # Dashboard Streamlit
-├── documentacao/            # Narrativa e decisões do case
-├── imagens/                 # Gráficos gerados pela análise
-├── relatorios/              # Relatório automático local
-├── src/                     # Módulos de carga, tratamento e análise
-├── testes/                  # Testes automatizados
-├── main.py                  # Executa o fluxo completo
-└── requirements.txt         # Dependências
-```
+- **Análise temporal:** filtros por intervalo de datas e visualizações mensais, semanais e diárias.
+- **Comparação de períodos:** volume, conclusão, índices financeiros e pedidos por dia observado, com aviso para períodos parciais.
+- **Operação:** distribuição por horário e status, tempo mediano de preparo e percentil 90.
+- **Clientes:** segmentação RFM por recência, frequência e valor histórico das compras.
+- **Previsões:** estimativas para horizontes de 7 a 28 dias, comparação de modelos, erros de validação e faixas empíricas de erro.
+- **Atualização e exportação:** importação local de pedidos em Excel, upload de séries agregadas em CSV e download das séries e previsões.
+
+A segmentação RFM representa o cadastro de clientes disponível. Ela não é recalculada por filtros de datas ou uploads de CSV diário. As agregações de preparo também não são filtradas por data no painel.
+
+## Metodologia
+
+Usei o **CRISP-DM** como referência para estruturar o trabalho:
+
+| Etapa | Aplicação no projeto |
+|---|---|
+| Entendimento do negócio | Perguntas sobre demanda, operação e clientes |
+| Entendimento dos dados | Inspeção das exportações, cobertura temporal e qualidade dos registros |
+| Preparação | Conversão de datas, tratamento de campos, definição de pedidos concluídos e agregações |
+| Modelagem | Segmentação RFM e comparação de métodos de previsão por alvo |
+| Avaliação | Validação cronológica, MAE, RMSE e registro das limitações |
+| Implantação | Dashboard Streamlit, dados públicos indexados e execução na VPS com Docker |
+
+Na análise operacional, durações fora da faixa de 0 a 180 minutos são sinalizadas como inconsistentes. No histórico de clientes, os atributos são reconstruídos a partir de pedidos anteriores à data de cada observação.
+
+## Previsão de pedidos e faturamento
+
+Os alvos são modelados separadamente:
+
+- **Pedidos:** quantidade de pedidos registrados por dia.
+- **Faturamento:** soma de `TOTAL` dos pedidos com status `Entregue`, `Retirado` ou `Avaliado`, agrupados pela data do pedido. Não representa lucro, margem ou fluxo de caixa.
+
+O modelo utiliza calendário, tendência, último valor observado, médias dos últimos 7 e 28 dias e contagem de observações nessas janelas. Quando disponíveis, acrescenta atributos agregados dos 28 dias anteriores: clientes ativos, clientes que repetiram pedidos, frequência média e ticket histórico.
+
+Os telefones são normalizados somente em memória para reconstruir o histórico e verificar a cobertura do cadastro. Identificadores não são exportados na série diária. Totais atuais do cadastro não são usados como se fossem conhecidos em datas passadas.
+
+### Modelos e avaliação
+
+Comparo um **Random Forest Regressor** com uma **média histórica por dia da semana**. O Random Forest utiliza 150 árvores, mínimo de 5 observações por folha e semente 42.
+
+A avaliação usa três janelas cronológicas, cada uma com o mesmo horizonte escolhido para a projeção. Em cada janela, o treinamento utiliza apenas datas anteriores à sua origem. As médias de demanda avançam com previsões recursivas, e o contexto dos clientes fica congelado na origem, sem consultar compras futuras.
+
+O método com menor **MAE médio** é escolhido para cada alvo; o **RMSE** também é apresentado. Na base até 30/09/2026, com horizonte de 14 dias e sem preencher dias ausentes com zero, os resultados arredondados são:
+
+| Alvo | Média por dia da semana — MAE | Random Forest — MAE |
+|---|---:|---:|
+| Pedidos | 5,64 pedidos/dia | 4,69 pedidos/dia |
+| Faturamento público | 3,34 pontos de índice/dia | 3,22 pontos de índice/dia |
+
+Nessa configuração, o Random Forest foi selecionado para os dois alvos. A seleção pode mudar conforme a base, o horizonte e o tratamento dos dias ausentes. As mesmas janelas são usadas para comparação e seleção; esses resultados não constituem um teste final independente.
+
+As faixas usam o percentil 90 dos erros absolutos de validação, com limite inferior zero. São referências empíricas por dia, sem garantia de cobertura. Somar os limites diários não produz um intervalo confiável para o total do período.
+
+## Privacidade e versão pública
+
+| Conteúdo | Tratamento |
+|---|---|
+| Planilhas originais, nomes, telefones e endereços | Permanecem localmente; excluídos do Git e da imagem Docker |
+| Bases tratadas e faturamento em reais | Uso local; excluídos do Git e da imagem Docker |
+| Agregações em `dados/publicos` | Publicadas sem identificadores e com valores financeiros indexados ou omitidos |
+| Upload no site público | Aceita CSV agregado e altera apenas a sessão do visitante |
+
+Na previsão pública, o faturamento é indexado para que a soma do primeiro mês com receita positiva seja 100. O ticket histórico também é indexado. Os índices permitem acompanhar variações sem publicar os valores absolutos em reais.
+
+A variável `DELIVERY_PUBLICO=1` ativa a demonstração pública, bloqueando a importação de valores em reais e o salvamento no servidor. A planilha Excel de pedidos deve ser importada na aplicação local.
+
+## Tecnologias
+
+| Finalidade | Tecnologias |
+|---|---|
+| Tratamento e análise | Python, pandas, NumPy e openpyxl |
+| Modelagem | scikit-learn |
+| Visualização | Plotly, Matplotlib e Seaborn |
+| Aplicação | Streamlit |
+| Auditoria de PDF | pypdf |
+| Validação | pytest |
+| Versionamento e implantação | Git, GitHub, Docker Compose, Nginx e VPS |
 
 ## Como executar
 
-No terminal do PyCharm, com o ambiente virtual ativado:
+### Demonstração com os dados públicos
+
+Não é necessário ter as planilhas do cliente para executar o dashboard público. No PowerShell:
 
 ```powershell
-pip install -r requirements.txt
+git clone https://github.com/pedrokamerli/analise-delivery.git
+cd analise-delivery
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+$env:DELIVERY_PUBLICO = "1"
+python -m streamlit run dashboard/app.py --server.port 8513
+```
+
+Abra o endereço exibido pelo Streamlit, normalmente `http://localhost:8513`. Se a porta estiver ocupada, escolha outra disponível.
+
+### Análise completa com os arquivos privados
+
+Coloque em `dados/brutos` uma exportação `Pedidos - *.xlsx`, uma `Planilha de clientes - *.xlsx` com a aba `CLIENTES` e o PDF de avaliações. O fluxo completo exige os arquivos e o esquema da exportação original.
+
+```powershell
+$env:DELIVERY_PUBLICO = "0"
 python main.py
+python -m streamlit run dashboard/app.py --server.port 8513
 ```
 
-Esse comando gera as bases tratadas localmente, os gráficos, o relatório e as agregações públicas usadas pelo dashboard.
+O comando `main.py` gera bases tratadas, gráficos, relatório local e agregações públicas. Na visão local, a aba de previsão de pedidos e faturamento apresenta valores em reais.
 
-Para abrir o dashboard:
+## Atualização de pedidos
+
+No dashboard local, use **Importar pedidos do sistema (Excel)** e envie a nova exportação `.xlsx`. Também é possível executar:
 
 ```powershell
-streamlit run dashboard/app.py --server.port 8512
+python atualizar_pedidos.py "C:\caminho\Pedidos - nova-exportacao.xlsx"
 ```
 
-No painel, é possível selecionar o período de análise, alternar entre as visões mensal, semanal e diária, escolher o indicador e comparar duas janelas de tempo. Os indicadores financeiros são apresentados como índices, e não em reais, para preservar informações comerciais.
+A importação combina os pedidos pelo ID: preserva os antigos, atualiza IDs repetidos e inclui novos registros. Isso permite importar uma exportação parcial sem apagar os meses anteriores. IDs ausentes, duplicados e esquemas incompatíveis são rejeitados.
 
-## Segmentação RFM
+O consolidado local fica em `dados/brutos` em um arquivo `.pkl` gerado pelo projeto. A exportação original é preservada; backups ficam em `dados/atualizacoes/backups`. A importação regenera as agregações e os atributos históricos usados nas previsões. O cadastro e a segmentação RFM continuam referentes à exportação de clientes disponível.
 
-Para a visão de clientes, apliquei a segmentação RFM:
+O upload público aceita apenas CSV agregado e não altera permanentemente a base publicada. O painel fornece um modelo com as colunas necessárias. Para atualizar o site, é necessário versionar os arquivos regenerados de `dados/publicos` e reconstruir o contêiner.
 
-- **Recência:** há quanto tempo a última compra foi feita;
-- **Frequência:** quantidade de pedidos realizados;
-- **Valor monetário:** valor histórico dos pedidos.
+## Estrutura do repositório
 
-Os grupos encontrados são: clientes fiéis, clientes recentes, clientes em risco, baixo engajamento e oportunidade. Essa classificação ajuda a indicar possíveis ações de retenção e reativação.
+```text
+analise-delivery/
+├── dashboard/app.py          # Interface Streamlit
+├── dados/
+│   ├── brutos/               # Fontes privadas e consolidado local; fora do Git
+│   ├── tratados/            # Bases locais geradas; fora do Git
+│   ├── atualizacoes/        # Séries salvas e backups; fora do Git
+│   └── publicos/            # Agregações usadas na demonstração
+├── documentacao/            # Narrativa, metodologia e imagem do dashboard
+├── imagens/                 # Gráficos gerados localmente
+├── relatorios/              # Relatório gerado localmente
+├── src/                     # Carga, tratamento, análise, importação e previsão
+├── testes/                  # Testes de validação e modelagem
+├── main.py                  # Fluxo completo da análise
+├── atualizar_pedidos.py     # Importação incremental de pedidos por ID
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
 
-## Limitações da base
-
-- Há registros de tempo de entrega fora de uma faixa plausível. Por isso, durações menores que zero ou maiores que 180 minutos são marcadas como inconsistentes.
-- A base de clientes representa um retrato histórico e não deve ser usada como correspondência perfeita para todos os pedidos do período.
-- Não há dados de itens, custos ou margem. Logo, análises de rentabilidade por produto ainda não fazem parte deste case.
-- Para analisar as avaliações com mais profundidade, seria necessário ter os textos em CSV/XLSX ou realizar OCR com revisão manual.
-
-## Privacidade dos dados
-
-Os arquivos em `dados/brutos/`, `dados/tratados/` e relatórios locais são ignorados pelo Git. Antes de publicar qualquer evolução deste projeto, reviso se não há nomes, telefones, endereços, identificadores ou valores comerciais que não deveriam ficar públicos.
-
-## Evolução local: previsão e atualização de dados
-
-Acrescentei uma área de previsão experimental de pedidos diários com Random Forest. Comparo o ML com a média histórica por dia da semana em três janelas cronológicas, usando MAE e RMSE. A projeção usa o método que apresentar menor MAE médio, mesmo quando a referência simples vencer o ML.
-
-Dias sem registro não são tratados automaticamente como zero: o painel permite confirmar essa hipótese. A faixa mostrada na projeção é baseada nos erros de validação e não representa garantia de precisão. Ainda não incluo variáveis de clima, promoções e feriados.
-
-Também incluí upload de CSV agregado, com prévia, validação e opção de adicionar/corrigir datas ou substituir a série. O arquivo precisa conter `data`, `pedidos`, `pedidos_concluidos`, `indice_faturamento` e `pontos_ticket_indice`. Datas usam `AAAA-MM-DD`; quantidades devem ser inteiras e índices devem manter a mesma referência financeira da base original. O painel fornece um modelo para download.
-
-A atualização pode ser aplicada na sessão e salva localmente pelo botão do painel. O arquivo fica em `dados/atualizacoes/`, fora do Git, e é carregado nas próximas sessões. Ao salvar, a versão anterior é preservada em backup. Também é possível exportar a série ativa ou restaurar a base inicial na sessão. Preparo e RFM continuam referentes à exportação original, pois esses arquivos não possuem dimensão diária. Esta evolução está sendo validada localmente antes de atualizar a VPS.
-
-Para verificar as regras de importação e previsão:
+## Testes e implantação
 
 ```powershell
 python -m pytest testes -q
 ```
 
-## Previsão diária de pedidos e faturamento com clientes
+Os testes verificam regras de CSV, combinação de pedidos, indexação financeira e comportamento das previsões. Incluem um cenário que altera dados futuros para verificar que eles não modificam projeções de uma janela anterior.
 
-Na aba **Pedidos e faturamento**, acrescentei uma previsão local em reais usando os pedidos e o histórico de compra reconstruído por cliente. Relaciono as planilhas pelo telefone apenas em memória; o arquivo diário salvo não contém identificadores e fica em `dados/tratados/`, fora do Git.
+A implantação atual utiliza Docker Compose e o Nginx compartilhado da VPS. Para reduzir o uso de disco, o `Dockerfile` herda a imagem `observatorio-municipios-observatorio-municipios:latest`, já disponível nesse servidor. O build depende dessa imagem: outra máquina precisa disponibilizá-la ou adaptar a imagem-base e as dependências. Para execução local independente dessa infraestrutura, use o ambiente Python descrito acima.
 
-O modelo considera clientes ativos e que repetiram pedidos nos 28 dias anteriores, frequência média e ticket histórico, além de calendário, médias recentes e último valor de demanda. Os totais atuais do cadastro de clientes não são projetados para trás no tempo. Recorrência é medida somente dentro do histórico de pedidos disponível.
+## Limitações e próximos passos
 
-Treino modelos separados para pedidos e faturamento e comparo cada um com uma média por dia da semana. A validação usa três janelas com o mesmo horizonte de 7 a 28 dias da projeção. Dentro de cada janela, a demanda futura avança com estimativas; o contexto dos clientes fica congelado na origem, pois não conheço as compras futuras.
+- Dias sem registro não significam automaticamente zero pedidos. Sem calendário de abertura, a previsão deve ser interpretada como demanda em dias de operação.
+- A projeção começa após a última data da base, que pode estar defasada em relação à data atual.
+- Os status são um retrato da exportação. Sem histórico de mudanças, a avaliação não reproduz integralmente o que era conhecido em cada data. Pedidos recentes ainda abertos podem subestimar o faturamento.
+- Recorrência e frequência dependem do período disponível. O cadastro de clientes é um retrato separado e não acompanha automaticamente novas exportações de pedidos.
+- Clima, promoções, feriados e mudanças de capacidade não entram no modelo atual.
+- Sem itens, custos e margens, não é possível avaliar rentabilidade por produto.
 
-Faturamento significa a soma dos valores dos pedidos concluídos conforme a exportação, agrupada pela data do pedido. Não é margem, lucro ou recebimento de caixa. Os status são um retrato atual: pedidos recentes ainda em andamento podem subestimar a receita. Sem registros históricos de mudanças de status, a validação não reproduz integralmente o que era conhecido na época.
+As próximas evoluções previstas são incorporar essas fontes, acrescentar um período final independente para avaliação e tornar a imagem Docker independente da infraestrutura atual.
 
-Para atualizar essa previsão, posso reconstruir o histórico das planilhas locais, executar `python main.py` ou enviar o CSV diário em reais pelo painel. O modelo completo para download inclui os atributos de clientes. CSVs contendo apenas `data`, `pedidos` e `faturamento` funcionam, mas não acrescentam contexto de clientes. Correções em pedidos antigos exigem recalcular os atributos dos dias seguintes.
+## Documentação complementar
 
-Os dados em reais e as previsões detalhadas ficam na visão local; a camada pública continua usando agregações financeiras indexadas.
+- [Narrativa do case](documentacao/narrativa_do_case.md)
+- [Modelo de demanda](documentacao/modelo_demanda.md)
+- [Previsão com histórico de clientes e pedidos](documentacao/previsao_pedidos_faturamento.md)
 
-Na VPS, configurei `DELIVERY_PUBLICO=1`: a previsão usa `dados/publicos/historico_previsao.csv`, com faturamento e ticket indexados. Uploads de demonstração alteram apenas a sessão; o salvamento no servidor e a importação de valores em reais ficam bloqueados. As planilhas originais e bases financeiras locais não entram na imagem Docker.
-
-## Próximos passos
-
-Pretendo evoluir o case com dados de produtos e custos para analisar margem e atualizar a implantação da VPS após a validação local.
-# Atualizar pedidos com uma exportação Excel
-
-No dashboard local, abro **Importar pedidos do sistema (Excel)** na barra lateral e envio a exportação `.xlsx`. A importação combina os pedidos pelo ID: mantém os anteriores, atualiza os repetidos e inclui os novos. Assim, posso enviar uma exportação de apenas um mês sem perder os outros meses. A base anterior fica em backup local.
-
-Também posso executar no terminal do projeto:
-
-```powershell
-python atualizar_pedidos.py "D:\Veneza marketing\Pedidos - 2026-10-01 08-47-16.xlsx"
-```
-
-As planilhas originais de pedidos e clientes precisam estar em `dados/brutos`. O histórico consolidado fica nessa pasta, em um arquivo `.pkl` gerado pelo próprio projeto. A importação recalcula as agregações e o histórico de previsão. O cadastro e a segmentação RFM continuam referentes à exportação de clientes disponível.
-
-No site público, o upload aceita apenas CSV agregado e vale para a sessão. Não envio a planilha bruta ao site, pois ela contém informações pessoais e valores em reais. Para atualizar a base pública permanentemente, publico os arquivos regenerados em `dados/publicos` pelo Git e reconstruo o contêiner da VPS.
+**Autor:** [Pedro Kamerli](https://github.com/pedrokamerli).
