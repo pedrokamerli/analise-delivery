@@ -93,6 +93,22 @@ Os grupos encontrados são: clientes fiéis, clientes recentes, clientes em risc
 
 Os arquivos em `dados/brutos/`, `dados/tratados/` e relatórios locais são ignorados pelo Git. Antes de publicar qualquer evolução deste projeto, reviso se não há nomes, telefones, endereços, identificadores ou valores comerciais que não deveriam ficar públicos.
 
+## Evolução local: previsão e atualização de dados
+
+Acrescentei uma área de previsão experimental de pedidos diários com Random Forest. Comparo o ML com a média histórica por dia da semana em três janelas cronológicas, usando MAE e RMSE. A projeção usa o método que apresentar menor MAE médio, mesmo quando a referência simples vencer o ML.
+
+Dias sem registro não são tratados automaticamente como zero: o painel permite confirmar essa hipótese. A faixa mostrada na projeção é baseada nos erros de validação e não representa garantia de precisão. Ainda não incluo variáveis de clima, promoções e feriados.
+
+Também incluí upload de CSV agregado, com prévia, validação e opção de adicionar/corrigir datas ou substituir a série. O arquivo precisa conter `data`, `pedidos`, `pedidos_concluidos`, `indice_faturamento` e `pontos_ticket_indice`. Datas usam `AAAA-MM-DD`; quantidades devem ser inteiras e índices devem manter a mesma referência financeira da base original. O painel fornece um modelo para download.
+
+A atualização pode ser aplicada na sessão e salva localmente pelo botão do painel. O arquivo fica em `dados/atualizacoes/`, fora do Git, e é carregado nas próximas sessões. Ao salvar, a versão anterior é preservada em backup. Também é possível exportar a série ativa ou restaurar a base inicial na sessão. Preparo e RFM continuam referentes à exportação original, pois esses arquivos não possuem dimensão diária. Esta evolução está sendo validada localmente antes de atualizar a VPS.
+
+Para verificar as regras de importação e previsão:
+
+```powershell
+python -m pytest testes -q
+```
+
 ## Próximos passos
 
-Pretendo evoluir o case com dados de produtos e custos para analisar margem, além de ampliar os testes das regras de tratamento e métricas.
+Pretendo evoluir o case com dados de produtos e custos para analisar margem e atualizar a implantação da VPS após a validação local.

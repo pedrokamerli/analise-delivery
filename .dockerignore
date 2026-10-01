@@ -4,3 +4,6 @@
 !dados/
 !dados/publicos/
 !dados/publicos/**
+!src/
+!src/atualizacao.py
+!src/previsao.py

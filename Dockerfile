@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir "plotly>=5.24,<6"
 
 # Somente o dashboard e agregações sem dados identificáveis entram na imagem.
 COPY dashboard ./dashboard
+COPY src/atualizacao.py src/previsao.py ./src/
 COPY dados/publicos ./dados/publicos
 
 EXPOSE 8501
