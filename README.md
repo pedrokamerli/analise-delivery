@@ -1,6 +1,6 @@
 # Análise e previsão de demanda de delivery
 
-Projeto de Ciência de Dados que transforma exportações de pedidos e clientes em indicadores operacionais, análises de recorrência e previsões diárias de pedidos e faturamento. O fluxo inclui tratamento de dados, análise exploratória, modelagem, dashboard interativo e publicação com Docker.
+Neste projeto de Ciência de Dados, transformei exportações de pedidos e clientes em indicadores operacionais, análises de recorrência e previsões diárias de pedidos e faturamento. Organizei o fluxo de tratamento de dados, análise exploratória, modelagem, dashboard interativo e publicação com Docker.
 
 Desenvolvi este case com dados reais de uma operação de delivery. A versão pública utiliza agregações sem identificadores pessoais e com valores financeiros indexados.
 
@@ -8,7 +8,7 @@ Desenvolvi este case com dados reais de uma operação de delivery. A versão p�
 
 ## Objetivo
 
-Organizar o histórico da operação para apoiar decisões sobre demanda, capacidade de atendimento e relacionamento com clientes. As perguntas que orientam a análise são:
+Meu objetivo foi organizar o histórico da operação para apoiar decisões sobre demanda, capacidade de atendimento e relacionamento com clientes. As perguntas que orientaram a análise foram:
 
 - Como o volume de pedidos varia por mês, semana, dia e horário?
 - Qual é a proporção de pedidos concluídos e como ela muda entre períodos?
@@ -58,7 +58,7 @@ Usei o **CRISP-DM** como referência para estruturar o trabalho:
 | Avaliação | Validação cronológica, MAE, RMSE e registro das limitações |
 | Implantação | Dashboard Streamlit, dados públicos indexados e execução na VPS com Docker |
 
-Na análise operacional, durações fora da faixa de 0 a 180 minutos são sinalizadas como inconsistentes. No histórico de clientes, os atributos são reconstruídos a partir de pedidos anteriores à data de cada observação.
+Na análise operacional, sinalizei durações fora da faixa de 0 a 180 minutos como inconsistentes. No histórico de clientes, reconstruí os atributos a partir de pedidos anteriores à data de cada observação.
 
 ## Previsão de pedidos e faturamento
 
@@ -67,17 +67,17 @@ Os alvos são modelados separadamente:
 - **Pedidos:** quantidade de pedidos registrados por dia.
 - **Faturamento:** soma de `TOTAL` dos pedidos com status `Entregue`, `Retirado` ou `Avaliado`, agrupados pela data do pedido. Não representa lucro, margem ou fluxo de caixa.
 
-O modelo utiliza calendário, tendência, último valor observado, médias dos últimos 7 e 28 dias e contagem de observações nessas janelas. Quando disponíveis, acrescenta atributos agregados dos 28 dias anteriores: clientes ativos, clientes que repetiram pedidos, frequência média e ticket histórico.
+No modelo, uso calendário, tendência, último valor observado, médias dos últimos 7 e 28 dias e contagem de observações nessas janelas. Quando disponíveis, acrescento atributos agregados dos 28 dias anteriores: clientes ativos, clientes que repetiram pedidos, frequência média e ticket histórico.
 
-Os telefones são normalizados somente em memória para reconstruir o histórico e verificar a cobertura do cadastro. Identificadores não são exportados na série diária. Totais atuais do cadastro não são usados como se fossem conhecidos em datas passadas.
+Normalizo os telefones somente em memória para reconstruir o histórico e verificar a cobertura do cadastro. Não exporto identificadores na série diária nem uso totais atuais do cadastro como se fossem conhecidos em datas passadas.
 
 ### Modelos e avaliação
 
 Comparo um **Random Forest Regressor** com uma **média histórica por dia da semana**. O Random Forest utiliza 150 árvores, mínimo de 5 observações por folha e semente 42.
 
-A avaliação usa três janelas cronológicas, cada uma com o mesmo horizonte escolhido para a projeção. Em cada janela, o treinamento utiliza apenas datas anteriores à sua origem. As médias de demanda avançam com previsões recursivas, e o contexto dos clientes fica congelado na origem, sem consultar compras futuras.
+Avalio os métodos em três janelas cronológicas, cada uma com o mesmo horizonte escolhido para a projeção. Em cada janela, treino apenas com datas anteriores à sua origem. Avanço as médias de demanda com previsões recursivas e mantenho o contexto dos clientes congelado na origem, sem consultar compras futuras.
 
-O método com menor **MAE médio** é escolhido para cada alvo; o **RMSE** também é apresentado. Na base até 30/09/2026, com horizonte de 14 dias e sem preencher dias ausentes com zero, os resultados arredondados são:
+Escolho o método com menor **MAE médio** para cada alvo e também apresento o **RMSE**. Na base até 30/09/2026, com horizonte de 14 dias e sem preencher dias ausentes com zero, obtive os seguintes resultados arredondados:
 
 | Alvo | Média por dia da semana — MAE | Random Forest — MAE |
 |---|---:|---:|
@@ -86,7 +86,7 @@ O método com menor **MAE médio** é escolhido para cada alvo; o **RMSE** tamb�
 
 Nessa configuração, o Random Forest foi selecionado para os dois alvos. A seleção pode mudar conforme a base, o horizonte e o tratamento dos dias ausentes. As mesmas janelas são usadas para comparação e seleção; esses resultados não constituem um teste final independente.
 
-As faixas usam o percentil 90 dos erros absolutos de validação, com limite inferior zero. São referências empíricas por dia, sem garantia de cobertura. Somar os limites diários não produz um intervalo confiável para o total do período.
+Construo as faixas com o percentil 90 dos erros absolutos de validação, com limite inferior zero. Uso essas faixas como referências empíricas por dia, sem garantia de cobertura. Não somo os limites diários para apresentar um intervalo do total do período.
 
 ## Privacidade e versão pública
 
@@ -97,7 +97,7 @@ As faixas usam o percentil 90 dos erros absolutos de validação, com limite inf
 | Agregações em `dados/publicos` | Publicadas sem identificadores e com valores financeiros indexados ou omitidos |
 | Upload no site público | Aceita CSV agregado e altera apenas a sessão do visitante |
 
-Na previsão pública, o faturamento é indexado para que a soma do primeiro mês com receita positiva seja 100. O ticket histórico também é indexado. Os índices permitem acompanhar variações sem publicar os valores absolutos em reais.
+Na previsão pública, indexo o faturamento para que a soma do primeiro mês com receita positiva seja 100. Também indexo o ticket histórico. Assim, apresento variações sem publicar os valores absolutos em reais.
 
 A variável `DELIVERY_PUBLICO=1` ativa a demonstração pública, bloqueando a importação de valores em reais e o salvamento no servidor. A planilha Excel de pedidos deve ser importada na aplicação local.
 
@@ -187,7 +187,7 @@ python -m pytest testes -q
 
 Os testes verificam regras de CSV, combinação de pedidos, indexação financeira e comportamento das previsões. Incluem um cenário que altera dados futuros para verificar que eles não modificam projeções de uma janela anterior.
 
-A implantação atual utiliza Docker Compose e o Nginx compartilhado da VPS. Para reduzir o uso de disco, o `Dockerfile` herda a imagem `observatorio-municipios-observatorio-municipios:latest`, já disponível nesse servidor. O build depende dessa imagem: outra máquina precisa disponibilizá-la ou adaptar a imagem-base e as dependências. Para execução local independente dessa infraestrutura, use o ambiente Python descrito acima.
+Publiquei a aplicação com Docker Compose e o Nginx compartilhado da VPS. Para reduzir o uso de disco, configurei o `Dockerfile` para herdar a imagem `observatorio-municipios-observatorio-municipios:latest`, já disponível nesse servidor. O build depende dessa imagem: outra máquina precisa disponibilizá-la ou adaptar a imagem-base e as dependências. Documentei acima a execução com ambiente Python, que independe dessa infraestrutura.
 
 ## Limitações e próximos passos
 
@@ -198,7 +198,7 @@ A implantação atual utiliza Docker Compose e o Nginx compartilhado da VPS. Par
 - Clima, promoções, feriados e mudanças de capacidade não entram no modelo atual.
 - Sem itens, custos e margens, não é possível avaliar rentabilidade por produto.
 
-As próximas evoluções previstas são incorporar essas fontes, acrescentar um período final independente para avaliação e tornar a imagem Docker independente da infraestrutura atual.
+Pretendo incorporar essas fontes, acrescentar um período final independente para avaliação e tornar a imagem Docker independente da infraestrutura atual.
 
 ## Documentação complementar
 
@@ -206,4 +206,4 @@ As próximas evoluções previstas são incorporar essas fontes, acrescentar um 
 - [Modelo de demanda](documentacao/modelo_demanda.md)
 - [Previsão com histórico de clientes e pedidos](documentacao/previsao_pedidos_faturamento.md)
 
-**Autor:** [Pedro Kamerli](https://github.com/pedrokamerli).
+**Autor:** [Pedro Merli](https://github.com/pedrokamerli).

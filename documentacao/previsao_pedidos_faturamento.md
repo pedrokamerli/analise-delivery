@@ -1,40 +1,82 @@
-# Previsão diária baseada em pedidos e histórico de clientes
+# Previsão diária com histórico de clientes e pedidos
 
-A implementação está em `src/historico_clientes.py` e `src/previsao_negocio.py`. A aba **Pedidos e faturamento** do dashboard é a visão local em reais.
+## Objetivo e implementação
 
-## Fontes e privacidade
+Desenvolvi esta abordagem para estimar pedidos e faturamento usando calendário, demanda recente e comportamento agregado dos clientes. A implementação está em `src/historico_clientes.py` e `src/previsao_negocio.py`, na aba **Pedidos e faturamento** do dashboard.
 
-Relaciono os telefones normalizados das planilhas de clientes e pedidos em memória. O cadastro permite verificar a cobertura do vínculo. Não salvo telefones, nomes, IDs de cliente ou chaves pseudonimizadas na série final. A série financeira fica em `dados/tratados/historico_diario.csv`, ignorada pelo Git e excluída do contexto Docker.
+Na aplicação local, trabalho com faturamento em reais. Na demonstração pública, uso `dados/publicos/historico_previsao.csv`, com faturamento e ticket histórico indexados.
 
-O retrato atual de PEDIDOS, FATURADO e DIAS SEM COMPRAR no cadastro não é usado como atributo de datas anteriores. Essas informações não têm versões históricas. Reconstruo o comportamento a partir dos pedidos com datas anteriores ao dia previsto. A recorrência, portanto, está limitada ao início da exportação disponível.
+## Fontes e proteção dos dados
 
-## Alvos
+Normalizo os telefones das planilhas de clientes e pedidos em memória para reconstruir o comportamento e verificar a cobertura do cadastro. Não salvo nomes, telefones, IDs de cliente ou chaves pseudonimizadas na série diária final.
 
-- Pedidos: todos os pedidos registrados no dia.
-- Faturamento: soma de TOTAL de pedidos classificados como Entregue, Retirado ou Avaliado na exportação, agrupados pela data do pedido.
+Mantenho a série financeira local em `dados/tratados/historico_diario.csv`, fora do Git e da imagem Docker. Na exportação pública, indexo o faturamento para que a soma do primeiro mês com receita positiva seja 100. Também indexo o ticket histórico, sem publicar as referências monetárias usadas na conversão.
 
-Esse faturamento não é lucro, margem ou fluxo de caixa. Os status são um retrato da exportação: não há uma trilha completa que permita saber o status de cada pedido como era conhecido em cada data passada. Pedidos recentes em andamento podem subestimar receita, e essa limitação também afeta os rótulos da avaliação retrospectiva.
+Não uso os totais atuais de PEDIDOS, FATURADO ou DIAS SEM COMPRAR do cadastro como atributos de datas anteriores. Como esses campos não têm versões históricas, reconstruo o comportamento a partir dos pedidos anteriores a cada data. A recorrência fica limitada ao período disponível.
 
-## Atributos
+## Definição dos alvos
 
-Calendário, tendência, último valor e médias de 7 e 28 dias do alvo. As médias usam dias corridos e consideram somente observações anteriores ao dia, com contagem de observações em cada janela.
+- **Pedidos:** todos os pedidos registrados no dia.
+- **Faturamento:** soma de TOTAL dos pedidos com status Entregue, Retirado ou Avaliado na exportação, agrupados pela data do pedido.
 
-Atributos de clientes reconstruídos nos 28 dias anteriores: clientes distintos com pedidos, clientes que repetiram pedidos, frequência média de pedidos e ticket médio dos pedidos concluídos. São medidas agregadas, não previsões individuais de clientes.
+Não interpreto esse faturamento como lucro, margem ou fluxo de caixa. Os status representam o momento da exportação; sem uma trilha de alterações, não consigo reconstruir integralmente o que era conhecido em cada data passada.
 
-## Validação e previsão futura
+Pedidos recentes ainda em andamento podem subestimar a receita. Essa limitação afeta tanto a análise quanto os valores usados na avaliação retrospectiva.
 
-Comparo Random Forest com 150 árvores, mínimo de 5 observações por folha e semente 42 com a média histórica por dia da semana, separadamente para cada alvo. Uso três janelas cronológicas com o mesmo horizonte em dias corridos escolhido para a previsão, de 7 a 28 dias.
+## Atributos utilizados
 
-Na previsão de cada janela, o modelo é ajustado somente nos dados anteriores à sua origem. Os atributos de clientes ficam congelados no último retrato histórico disponível no treino. Médias e último valor avançam recursivamente com estimativas do modelo, sem usar os valores reais da janela de teste. Sem confirmação de dias ausentes como zero, avalio apenas os dias efetivamente registrados.
+Uso calendário, tendência, último valor observado e médias de 7 e 28 dias do alvo. As médias consideram dias corridos e somente observações anteriores à data, com contagem de registros em cada janela.
 
-Escolho o método de menor MAE médio por alvo. Os erros servem à comparação e seleção; não são um teste final independente. MAE e RMSE de pedidos são expressos em pedidos/dia e os de faturamento em reais/dia. A importância das variáveis não demonstra que elas causaram mudanças na demanda, nem que acrescentaram ganho isoladamente.
+Nos 28 dias anteriores, reconstruo quatro atributos agregados de clientes:
 
-As faixas são baseadas no percentil 90 dos erros absolutos de validação, com limite inferior zero. São referências empíricas individuais, não garantias de cobertura. Somar os limites diários não produz um intervalo confiável para o faturamento total.
+- Quantidade de clientes distintos com pedidos.
+- Quantidade de clientes que fizeram mais de um pedido na janela.
+- Frequência média de pedidos por cliente identificado.
+- Ticket médio dos pedidos concluídos.
 
-## Atualização e limites
+Esses atributos descrevem o histórico disponível; não são previsões individuais de compra nem demonstram, isoladamente, ganho no modelo.
 
-A reconstrução usa as duas planilhas locais e também é executada por `python main.py`. É possível importar CSV agregado com `data`, `pedidos` e `faturamento`; atributos de clientes são opcionais. Arquivos sem esses atributos dão origem a um modelo de histórico de demanda e receita, sem contexto de clientes.
+## Validação e seleção
 
-Datas duplicadas, valores não finitos, negativos, quantidades fracionárias de pedidos e colunas inesperadas são rejeitados. Para adicionar datas a uma série existente, o esquema precisa ser idêntico. Datas coincidentes são substituídas, sem dupla contagem. Atualizações de pedidos antigos exigem reconstruir os atributos de clientes dos dias seguintes.
+Comparo Random Forest e média por dia da semana separadamente para pedidos e faturamento. Configurei o Random Forest com 150 árvores, mínimo de 5 observações por folha e semente 42.
 
-A projeção começa após a última data disponível, e não automaticamente após hoje. Sem um cadastro confiável de abertura da loja, dias projetados devem ser lidos como demanda condicionada a um dia de operação. Promoções, clima, feriados e mudanças de capacidade continuam fora do modelo.
+Uso três janelas cronológicas com o mesmo horizonte em dias corridos escolhido para a previsão, de 7 a 28 dias. Em cada rodada, treino apenas com dados anteriores à origem da janela.
+
+Na projeção, congelo o contexto dos clientes no último retrato histórico do treino. Avanço as médias e o último valor recursivamente com estimativas, sem consultar os valores reais da janela futura. Sem confirmar dias ausentes como zero, avalio somente os dias registrados.
+
+Escolho o método com menor MAE médio por alvo e também apresento RMSE. Os erros são expressos em pedidos/dia e, conforme a versão, em reais/dia ou pontos de índice/dia.
+
+Na base até 30/09/2026, com horizonte de 14 dias e sem preencher dias ausentes, obtive:
+
+| Alvo | Método | MAE | RMSE |
+|---|---|---:|---:|
+| Pedidos | Média por dia da semana | 5,64 | 6,82 |
+| Pedidos | Random Forest com histórico | 4,69 | 5,62 |
+| Faturamento em índice | Média por dia da semana | 3,34 | 3,82 |
+| Faturamento em índice | Random Forest com histórico | 3,22 | 3,72 |
+
+Nessa configuração, selecionei o Random Forest para os dois alvos. Reavalio a escolha quando a base ou os parâmetros mudam. Uso as mesmas janelas para comparar e selecionar; ainda não tenho um teste final independente. Não interpreto a importância das variáveis como causalidade.
+
+## Faixas da previsão
+
+Uso o percentil 90 dos erros absolutos de validação do método escolhido, com limite inferior zero. Essas faixas são referências empíricas por dia, sem garantia de cobertura.
+
+Não somo os limites diários para apresentar um intervalo do total: isso exigiria considerar a dependência entre os erros de cada dia.
+
+## Atualização do histórico
+
+Reconstruo o histórico pelas planilhas locais, pelo fluxo `python main.py` ou pela importação de Excel em `atualizar_pedidos.py`. Ao importar pedidos, combino os registros pelo ID e recalculo os atributos históricos, preservando os meses anteriores.
+
+Também aceito CSV agregado local com `data`, `pedidos` e `faturamento`. Os atributos de clientes são opcionais: sem eles, o modelo usa apenas o histórico de demanda e receita.
+
+Rejeito datas duplicadas, valores negativos ou não finitos, pedidos fracionários e colunas inesperadas. Para adicionar datas ao histórico existente, exijo o mesmo esquema. Substituo datas coincidentes sem dupla contagem. Uma correção antiga exige reconstruir os atributos dos dias seguintes.
+
+Na VPS, ativo `DELIVERY_PUBLICO=1`. Mantenho a importação de valores em reais e o salvamento no servidor bloqueados. O upload público de demonstração aceita agregações sem dados pessoais e vale apenas para a sessão; a atualização permanente depende da publicação dos arquivos públicos.
+
+## Limites de interpretação
+
+Começo a projeção após a última data disponível, e não automaticamente após hoje. Sem um calendário confiável de abertura, interpreto os dias projetados como demanda em dias de operação.
+
+Ainda não incluo promoções, clima, feriados ou mudanças de capacidade. Pretendo ampliar as fontes e reservar um período independente de avaliação antes de atribuir maior confiança operacional às previsões.
+
+**Autor:** [Pedro Merli](https://github.com/pedrokamerli).
