@@ -123,6 +123,8 @@ Para atualizar essa previsão, posso reconstruir o histórico das planilhas loca
 
 Os dados em reais e as previsões detalhadas ficam na visão local; a camada pública continua usando agregações financeiras indexadas.
 
+Na VPS, configurei `DELIVERY_PUBLICO=1`: a previsão usa `dados/publicos/historico_previsao.csv`, com faturamento e ticket indexados. Uploads de demonstração alteram apenas a sessão; o salvamento no servidor e a importação de valores em reais ficam bloqueados. As planilhas originais e bases financeiras locais não entram na imagem Docker.
+
 ## Próximos passos
 
 Pretendo evoluir o case com dados de produtos e custos para analisar margem e atualizar a implantação da VPS após a validação local.

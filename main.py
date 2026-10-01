@@ -5,7 +5,7 @@ from pathlib import Path
 from src.analise import calcular_metricas_principais, gerar_tabelas_analiticas
 from src.carga import RAIZ_PROJETO, carregar_clientes, carregar_pedidos
 from src.avaliacoes import auditar_pdf_avaliacoes
-from src.publicacao import exportar_dados_publicos
+from src.publicacao import exportar_dados_publicos, exportar_historico_previsao
 from src.relatorio import criar_relatorio
 from src.tratamento import tratar_clientes, tratar_pedidos
 from src.visualizacao import salvar_graficos
@@ -47,6 +47,7 @@ def main() -> None:
     exportar_dados_publicos(metricas, tabelas, RAIZ_PROJETO / "dados" / "publicos")
     historico, resumo_historico = construir_historico(pedidos_brutos, clientes_brutos)
     historico.to_csv(pasta_dados_tratados / "historico_diario.csv", index=False)
+    exportar_historico_previsao(historico, RAIZ_PROJETO / "dados" / "publicos")
     (pasta_dados_tratados / "historico_resumo.json").write_text(
         json.dumps(resumo_historico, ensure_ascii=False, indent=2), encoding="utf-8"
     )

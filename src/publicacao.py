@@ -6,6 +6,23 @@ from pathlib import Path
 import pandas as pd
 
 
+def exportar_historico_previsao(historico: pd.DataFrame, pasta_saida: Path) -> None:
+    """Publica contexto agregado com todos os valores financeiros indexados."""
+    from src.historico_clientes import COLUNAS_HISTORICO
+    receita_mes = historico.groupby(historico.data.dt.to_period("M")).faturamento.sum()
+    positivos = receita_mes[receita_mes > 0]
+    if positivos.empty:
+        raise ValueError("Não há receita positiva para indexar o histórico.")
+    base_receita = positivos.iloc[0]
+    tickets = historico.historico_ticket_28d[historico.historico_ticket_28d > 0]
+    base_ticket = tickets.iloc[0] if len(tickets) else 1.0
+    publico = historico[["data", "pedidos", "faturamento"] + COLUNAS_HISTORICO].copy()
+    publico["faturamento"] = (100 * publico.faturamento / base_receita).round(6)
+    publico["historico_ticket_28d"] = (100 * publico.historico_ticket_28d / base_ticket).round(6)
+    pasta_saida.mkdir(parents=True, exist_ok=True)
+    publico.to_csv(pasta_saida / "historico_previsao.csv", index=False)
+
+
 def exportar_dados_publicos(
     metricas: dict[str, float | int | str], tabelas: dict[str, pd.DataFrame], pasta_saida: Path
 ) -> None:

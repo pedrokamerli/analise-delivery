@@ -2,6 +2,7 @@
 
 import json
 import sys
+import os
 from datetime import date
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from src.previsao_negocio import prever_pedidos_faturamento
 from src.historico_clientes import gerar_base_local, validar_csv_historico, COLUNAS_HISTORICO
 PASTA_DADOS = RAIZ_PROJETO / "dados" / "publicos"
 ARQUIVO_LOCAL = RAIZ_PROJETO / "dados" / "atualizacoes" / "serie_diaria.csv"
+MODO_PUBLICO = os.getenv("DELIVERY_PUBLICO", "0") == "1"
 AZUL = "#2563EB"
 LARANJA = "#F97316"
 VERDE = "#16A34A"
@@ -79,14 +81,14 @@ def formatar_periodo(valor: str, granularidade: str) -> str:
 
 dados = carregar_dados()
 resumo = dados["resumo"]
-if "serie_atualizada" not in st.session_state and ARQUIVO_LOCAL.exists():
+if not MODO_PUBLICO and "serie_atualizada" not in st.session_state and ARQUIVO_LOCAL.exists():
     try:
         st.session_state["serie_atualizada"] = validar_csv(ARQUIVO_LOCAL.read_bytes())
         st.session_state["fonte_atualizada"] = True
     except ValueError as erro:
         st.error(f"Base local inválida: {erro}")
 with st.sidebar.expander("Atualizar dados por CSV"):
-    st.caption("Envie agregações diárias sem nomes, telefones ou valores em reais. Aplique na sessão e, se quiser manter a atualização após reiniciar, salve a base local.")
+    st.caption("Envie agregações diárias sem nomes, telefones ou valores em reais. Na versão pública, a atualização vale apenas para sua sessão." if MODO_PUBLICO else "Envie agregações diárias sem nomes, telefones ou valores em reais. Aplique na sessão e, se quiser manter a atualização após reiniciar, salve a base local.")
     st.download_button("Baixar modelo CSV", dados["serie"].head(3).to_csv(index=False).encode("utf-8"), "modelo_serie_diaria.csv", "text/csv")
     arquivo = st.file_uploader("CSV diário (até 5 MB)", type=["csv"])
     modo = st.selectbox("Modo de atualização", ["Adicionar ou corrigir datas", "Substituir série completa"])
@@ -105,7 +107,7 @@ with st.sidebar.expander("Atualizar dados por CSV"):
         st.session_state["serie_atualizada"] = dados["serie"].copy()
         st.session_state.pop("fonte_atualizada", None)
         st.rerun()
-    if st.button("Salvar série ativa localmente"):
+    if not MODO_PUBLICO and st.button("Salvar série ativa localmente"):
         try:
             salvar_serie_local(st.session_state.get("serie_atualizada", dados["serie"]), ARQUIVO_LOCAL)
             st.success("Base salva em dados/atualizacoes. A versão anterior é preservada em backup.")
@@ -268,12 +270,12 @@ with analise_tab:
 with negocio_tab:
     st.subheader("Previsão diária com histórico de clientes e pedidos")
     st.write("Estimo pedidos e faturamento separadamente. O modelo usa calendário, médias recentes, último valor observado e o histórico de clientes ativos, recorrência, frequência e ticket dos 28 dias anteriores.")
-    st.caption("Visão local em reais. Faturamento corresponde ao total dos pedidos concluídos, agrupado pela data do pedido; não é lucro nem fluxo de caixa. A classificação de status é a registrada na exportação.")
+    st.caption("Faturamento em índice: soma do primeiro mês = 100. O ticket histórico também foi indexado. Nenhum valor em reais está publicado." if MODO_PUBLICO else "Visão local em reais. Faturamento corresponde ao total dos pedidos concluídos, agrupado pela data do pedido; não é lucro nem fluxo de caixa. A classificação de status é a registrada na exportação.")
     pasta_historico = RAIZ_PROJETO / "dados" / "tratados"
-    caminho_historico = pasta_historico / "historico_diario.csv"
+    caminho_historico = PASTA_DADOS / "historico_previsao.csv" if MODO_PUBLICO else pasta_historico / "historico_diario.csv"
     with st.expander("Preparar ou atualizar histórico local"):
         st.write("Reconstruo o histórico a partir das planilhas originais. O telefone é usado somente em memória para relacionar clientes aos pedidos. Nenhum identificador é salvo na série diária.")
-        if st.button("Reconstruir histórico das planilhas locais"):
+        if st.button("Reconstruir histórico das planilhas locais", disabled=MODO_PUBLICO):
             try:
                 with st.spinner("Relacionando clientes e pedidos..."):
                     gerar_base_local(pasta_historico)
@@ -283,7 +285,7 @@ with negocio_tab:
                 st.success("Histórico reconstruído localmente.")
             except (ValueError, FileNotFoundError) as erro:
                 st.error(str(erro))
-        arquivo_historico = st.file_uploader("Atualizar histórico diário em CSV (valores em reais)", type=["csv"], key="upload_negocio")
+        arquivo_historico = st.file_uploader("Atualizar histórico diário em CSV (valores em reais)", type=["csv"], key="upload_negocio", disabled=MODO_PUBLICO)
         modo_historico = st.selectbox("Atualização do histórico", ["Adicionar ou corrigir datas", "Substituir série completa"], key="modo_negocio")
         if arquivo_historico:
             try:
@@ -318,11 +320,11 @@ with negocio_tab:
             st.warning("O histórico está defasado. Parte da projeção pode corresponder a datas já passadas; atualize os pedidos para prever a partir de uma origem recente.")
         if not set(COLUNAS_HISTORICO).issubset(base_negocio.columns):
             st.info("Este CSV permite prever pedidos e faturamento, mas não contém todos os atributos de clientes. Para usar recorrência e frequência, reconstrua o histórico das planilhas ou envie o modelo completo.")
-        if not st.session_state.get("negocio_csv") and (pasta_historico / "historico_resumo.json").exists():
+        if not MODO_PUBLICO and not st.session_state.get("negocio_csv") and (pasta_historico / "historico_resumo.json").exists():
             metadados = json.loads((pasta_historico / "historico_resumo.json").read_text(encoding="utf-8"))
             st.caption(f"Vínculo com o cadastro: {metadados['cobertura_cadastro_pct']:.1f}% dos pedidos com telefone válido. Clientes distintos no histórico: {metadados['clientes_identificados_nos_pedidos']}. Recorrência medida apenas dentro do período disponível.")
         st.download_button("Baixar histórico diário / modelo CSV", base_negocio.to_csv(index=False).encode("utf-8"), "historico_diario.csv", "text/csv")
-        if st.button("Salvar histórico de previsão localmente"):
+        if not MODO_PUBLICO and st.button("Salvar histórico de previsão localmente"):
             try:
                 salvar_serie_local(base_negocio, caminho_historico, validar_csv_historico)
                 st.success("Salvo em dados/tratados, com backup da versão anterior e fora do Git.")
@@ -347,23 +349,24 @@ with negocio_tab:
             previsao_negocio = negocio["previsao"]
             pedidos_col, receita_col = st.columns(2)
             pedidos_col.metric("Pedidos estimados no horizonte", f"{previsao_negocio.pedidos_previstos.sum():.0f}")
-            receita_col.metric("Faturamento estimado no horizonte", "R$ " + f"{previsao_negocio.faturamento_previstos.sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            receita_col.metric("Índice de faturamento no horizonte" if MODO_PUBLICO else "Faturamento estimado no horizonte", f"{previsao_negocio.faturamento_previstos.sum():.2f}" if MODO_PUBLICO else "R$ " + f"{previsao_negocio.faturamento_previstos.sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             st.dataframe(previsao_negocio, hide_index=True, column_config={
                 "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                 "pedidos_previstos": st.column_config.NumberColumn("Pedidos previstos", format="%.1f"),
                 "pedidos_inferior": st.column_config.NumberColumn("Pedidos: limite inferior", format="%.1f"),
                 "pedidos_superior": st.column_config.NumberColumn("Pedidos: limite superior", format="%.1f"),
-                "faturamento_previstos": st.column_config.NumberColumn("Faturamento previsto (R$)", format="R$ %.2f"),
-                "faturamento_inferior": st.column_config.NumberColumn("Receita: limite inferior (R$)", format="R$ %.2f"),
-                "faturamento_superior": st.column_config.NumberColumn("Receita: limite superior (R$)", format="R$ %.2f"),
+                "faturamento_previstos": st.column_config.NumberColumn("Faturamento (índice)" if MODO_PUBLICO else "Faturamento previsto (R$)", format="%.2f" if MODO_PUBLICO else "R$ %.2f"),
+                "faturamento_inferior": st.column_config.NumberColumn("Receita: limite inferior (índice)" if MODO_PUBLICO else "Receita: limite inferior (R$)", format="%.2f" if MODO_PUBLICO else "R$ %.2f"),
+                "faturamento_superior": st.column_config.NumberColumn("Receita: limite superior (índice)" if MODO_PUBLICO else "Receita: limite superior (R$)", format="%.2f" if MODO_PUBLICO else "R$ %.2f"),
             })
-            for alvo, unidade in [("pedidos", "Pedidos"), ("faturamento", "Faturamento (R$)")]:
+            for alvo, unidade in [("pedidos", "Pedidos"), ("faturamento", "Faturamento (índice)" if MODO_PUBLICO else "Faturamento (R$)")]:
                 st.write(f"**{unidade}** — método selecionado: {negocio['modelos'][alvo]}")
                 st.plotly_chart(px.line(previsao_negocio, x="data", y=[f"{alvo}_previstos", f"{alvo}_inferior", f"{alvo}_superior"], title=f"{unidade} por dia", labels={"data": "Data", "value": unidade, "variable": "Série"}), use_container_width=True)
             st.caption("Faixas individuais baseadas no percentil 90 dos erros de validação; não são garantia de cobertura nem devem ser somadas como intervalo do total. Pedidos fracionários representam uma expectativa, não uma contagem garantida.")
             st.subheader("Quanto o modelo errou ao prever períodos anteriores?")
             st.dataframe(negocio["avaliacao"].groupby(["alvo", "modelo"])[["MAE", "RMSE"]].mean().round(2))
-            st.caption("MAE de pedidos é medido em pedidos/dia; MAE de faturamento em reais/dia. Escolho o método por alvo usando as mesmas janelas de seleção, sem um teste final independente. O contexto dos clientes fica congelado na origem e as médias de demanda avançam com previsões, sem consultar valores reais futuros.")
+            st.caption("MAE de faturamento em pontos de índice/dia; pedidos em pedidos/dia." if MODO_PUBLICO else "MAE de pedidos é medido em pedidos/dia; MAE de faturamento em reais/dia.")
+            st.caption("Escolho o método por alvo usando as mesmas janelas de seleção, sem um teste final independente. O contexto dos clientes fica congelado na origem e as médias de demanda avançam com previsões, sem consultar valores reais futuros.")
             with st.expander("Resultados por janela, previsões de teste e importância das variáveis"):
                 st.dataframe(negocio["avaliacao"], hide_index=True)
                 for alvo in ["pedidos", "faturamento"]:
